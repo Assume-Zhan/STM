@@ -74,7 +74,7 @@ static void MX_TIM5_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int x = 0, test_it , pub_count = 0;
+int x = 0, test_it , pub_count = 0 , test_sub = 0;
 double countTime;
 int res;
 double Vx_now, Vy_now, Vx_goal = 0, Vy_goal = 0;
@@ -182,8 +182,8 @@ int main(void)
 	motor_4.error_before = 0;
 
 
-	a = 1; // need edit
-	b = 1; // need edit
+	a = 190; // need edit
+	b = 199; // need edit
 
   /* USER CODE END 2 */
 
@@ -763,11 +763,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance == TIM6) {
 		test_it++;
-		if (test_it >= 1000) {
-			test_it = 0;
-			put_car_vel(Vx_now , Vy_now , omega_now);
-			loop();
-		}
 
 		motor_1.CNT = 0 - __HAL_TIM_GET_COUNTER(&htim23);
 		motor_2.CNT = __HAL_TIM_GET_COUNTER(&htim24);
@@ -791,9 +786,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		/* send Vx_now, Vy_now and omega_now to ros */
 		/* get Vx_goal, Vy_goal and omega_goal from ros */
 
-		if(pub_count >= 100){
-			pub_count = 0;
-			put_car_vel(0 , 0 , 0);
+		if(test_it >= FREQUENCY){
+			test_it = 0;
+			put_car_vel(Vx_now , Vy_now , omega_now);
+			loop();
 		}
 
 		motor_1.V_goal = (double) Vy_goal - Vx_goal + omega_goal * (a + b);
