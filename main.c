@@ -42,7 +42,6 @@
 
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
-TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim8;
 TIM_HandleTypeDef htim23;
@@ -59,15 +58,14 @@ DMA_HandleTypeDef hdma_usart3_tx;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
-static void MX_USART3_UART_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM23_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_TIM6_Init(void);
 static void MX_TIM8_Init(void);
 static void MX_TIM24_Init(void);
-static void MX_TIM5_Init(void);
+static void MX_DMA_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -79,7 +77,7 @@ double countTime;
 int res;
 double Vx_now, Vy_now, Vx_goal = 0, Vy_goal = 0;
 double omega_now, omega_goal;
-double a, b;
+double a, b, r;
 double timerFor1 = 0 , timerFor2 = 0;
 
 typedef struct _Motor {
@@ -88,6 +86,7 @@ typedef struct _Motor {
 	double V_now, V_goal;
 	double p, i, d;
 	double u;
+	double lim;
 	double I;
 	double error , error_before;
 } Motor;
@@ -125,15 +124,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART3_UART_Init();
   MX_TIM3_Init();
   MX_TIM23_Init();
   MX_TIM4_Init();
   MX_TIM6_Init();
   MX_TIM8_Init();
   MX_TIM24_Init();
-  MX_TIM5_Init();
+  MX_DMA_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 	setup();
 	x = 1;
@@ -145,7 +143,7 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim6);
 	HAL_TIM_Encoder_Start(&htim23, TIM_CHANNEL_ALL); //1
 	HAL_TIM_Encoder_Start(&htim24, TIM_CHANNEL_ALL); //2
-	HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL); //3
+	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL); //3
 	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL); //4
 	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2); //1
 	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4); //2
@@ -156,18 +154,22 @@ int main(void)
 	motor_2.ratio = 16;
 	motor_3.ratio = 20.8;
 	motor_4.ratio = 20.8;
-	motor_1.p = 800;
-	motor_1.i = 1800;
-	motor_1.d = 5;
-	motor_2.p = 250;
-	motor_2.i = 220;
-	motor_2.d = 1;
+	motor_1.lim = 100;
+	motor_2.lim = 100;
+	motor_3.lim = 100;
+	motor_4.lim = 100;
+	motor_1.p = 945;
+	motor_1.i = 2275;
+	motor_1.d = 27;
+	motor_2.p = 390;
+	motor_2.i = 350;
+	motor_2.d = 30;
 	motor_3.p = 700;
-	motor_3.i = 1500;
-	motor_3.d = 5;
+	motor_3.i = 1700;
+	motor_3.d = 17;
 	motor_4.p = 700;
-	motor_4.i = 1350;
-	motor_4.d = 2;
+	motor_4.i = 1700;
+	motor_4.d = 35;
 	motor_1.I = 0;
 	motor_2.I = 0;
 	motor_3.I = 0;
@@ -182,8 +184,9 @@ int main(void)
 	motor_4.error_before = 0;
 
 
-	a = 190; // need edit
-	b = 199; // need edit
+	a = 98.5 / 1000;
+	b = 111.576 / 1000;
+	r = 50. /1000;
 
   /* USER CODE END 2 */
 
@@ -348,55 +351,6 @@ static void MX_TIM4_Init(void)
   /* USER CODE BEGIN TIM4_Init 2 */
 
   /* USER CODE END TIM4_Init 2 */
-
-}
-
-/**
-  * @brief TIM5 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM5_Init(void)
-{
-
-  /* USER CODE BEGIN TIM5_Init 0 */
-
-  /* USER CODE END TIM5_Init 0 */
-
-  TIM_Encoder_InitTypeDef sConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM5_Init 1 */
-
-  /* USER CODE END TIM5_Init 1 */
-  htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 0;
-  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 65535;
-  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
-  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC1Filter = 0;
-  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC2Filter = 0;
-  if (HAL_TIM_Encoder_Init(&htim5, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM5_Init 2 */
-
-  /* USER CODE END TIM5_Init 2 */
 
 }
 
@@ -699,7 +653,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
@@ -745,9 +698,14 @@ void duty_cycle(Motor* motor){
     P = motor->p * motor->error;
     motor->I += motor->i * motor->error * countTime;
 
+    if (motor->I > motor->lim)
+    	motor->I = motor->lim;
+    else if(motor->I < 0 - motor->lim)
+    	motor->I = 0 - motor->lim;
+
     D = motor->d * (motor->error - motor->error_before) / countTime;
 
-    motor->u = (double)P / 100 + motor->I / 100 + D / 1000;
+    motor->u = (double)P / 100 + motor->I / 100 + D / 10000;
 
     if(motor->u < -0.999){
         motor->u = -0.999;
@@ -764,24 +722,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM6) {
 		test_it++;
 
-		motor_1.CNT = 0 - __HAL_TIM_GET_COUNTER(&htim23);
+		motor_1.CNT = __HAL_TIM_GET_COUNTER(&htim23);
 		motor_2.CNT = __HAL_TIM_GET_COUNTER(&htim24);
-		motor_3.CNT = 0 - __HAL_TIM_GET_COUNTER(&htim5);
+		motor_3.CNT = 0 - __HAL_TIM_GET_COUNTER(&htim3);
 		motor_4.CNT = 0 - __HAL_TIM_GET_COUNTER(&htim4);
 
-		motor_1.V_now = (double) motor_1.CNT / res / 4 / motor_1.ratio / countTime;
+		motor_1.V_now = (double) motor_1.CNT / res / 4 / motor_1.ratio / countTime; //rps
 		motor_2.V_now = (double) motor_2.CNT / res / 4 / motor_2.ratio / countTime;
 		motor_3.V_now = (double) motor_3.CNT / res / 4 / motor_3.ratio / countTime;
 		motor_4.V_now = (double) motor_4.CNT / res / 4 / motor_4.ratio / countTime;
 
 		__HAL_TIM_SET_COUNTER(&htim23, 0);
 		__HAL_TIM_SET_COUNTER(&htim24, 0);
-		__HAL_TIM_SET_COUNTER(&htim5, 0);
+		__HAL_TIM_SET_COUNTER(&htim3, 0);
 		__HAL_TIM_SET_COUNTER(&htim4, 0);
 
-		Vx_now = (double) (motor_4.V_now - motor_1.V_now) / 2;
-		Vy_now = (double) (motor_1.V_now + motor_2.V_now) / 2;
-		omega_now = (double) (motor_4.V_now - motor_2.V_now) / 2 / (a + b);
+		Vx_now = (double) (motor_4.V_now - motor_1.V_now + motor_2.V_now - motor_3.V_now) * r / 4 * 2 * 3.14; //m/s
+		Vy_now = (double) (motor_1.V_now + motor_2.V_now + motor_3.V_now + motor_4.V_now) * r / 4 * 2 * 3.14;
+		omega_now = (double) (motor_4.V_now - motor_2.V_now + motor_1.V_now - motor_3.V_now) * r / 4 / (a + b) * 2 * 3.14;
 
 		/* send Vx_now, Vy_now and omega_now to ros */
 		/* get Vx_goal, Vy_goal and omega_goal from ros */
@@ -789,13 +747,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		if(test_it >= FREQUENCY){
 			test_it = 0;
 			put_car_vel(Vx_now , Vy_now , omega_now);
-			loop();
 		}
 
-		motor_1.V_goal = (double) Vy_goal - Vx_goal + omega_goal * (a + b);
-		motor_2.V_goal = (double) Vy_goal + Vx_goal - omega_goal * (a + b);
-		motor_3.V_goal = (double) Vy_goal - Vx_goal - omega_goal * (a + b);
-		motor_4.V_goal = (double) Vy_goal + Vx_goal + omega_goal * (a + b);
+		motor_1.V_goal = (double) (Vy_goal - Vx_goal + omega_goal * (a + b)) / r / 2 / 3.14;
+		motor_2.V_goal = (double) (Vy_goal + Vx_goal - omega_goal * (a + b)) / r / 2 / 3.14;
+		motor_3.V_goal = (double) (Vy_goal - Vx_goal - omega_goal * (a + b)) / r / 2 / 3.14;
+		motor_4.V_goal = (double) (Vy_goal + Vx_goal + omega_goal * (a + b)) / r / 2 / 3.14;
 
 		duty_cycle(&motor_1);
 		duty_cycle(&motor_2);
@@ -804,11 +761,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		/* the pins need to be tested */
 		if (motor_1.u >= 0) {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_SET);
-		} else {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+		} else {
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_RESET);
 			motor_1.u = -motor_1.u;
 		}
 		if (motor_2.u >= 0) {
@@ -820,11 +777,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			motor_2.u = -motor_2.u;
 		}
 		if (motor_3.u >= 0) {
-			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_13, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_RESET);
-		} else {
-			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_13, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_SET);
+		} else {
+			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_13, GPIO_PIN_SET);
 			motor_3.u = -motor_3.u;
 		}
 		if (motor_4.u >= 0) {
