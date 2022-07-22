@@ -39,6 +39,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc2;
 
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
@@ -66,19 +67,20 @@ static void MX_TIM8_Init(void);
 static void MX_TIM24_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_ADC2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int x = 0, test_it , pub_count = 0 , test_sub = 0;
+int x = 0, test_it, pub_count = 0, test_sub = 0;
 double countTime;
 int res;
 double Vx_now, Vy_now, Vx_goal = 0, Vy_goal = 0;
 double omega_now, omega_goal;
 double a, b, r;
-double timerFor1 = 0 , timerFor2 = 0;
+double timerFor1 = 0, timerFor2 = 0;
 
 typedef struct _Motor {
 	int16_t CNT;
@@ -88,7 +90,7 @@ typedef struct _Motor {
 	double u;
 	double lim;
 	double I;
-	double error , error_before;
+	double error, error_before;
 } Motor;
 
 Motor motor_1, motor_2, motor_3, motor_4;
@@ -132,6 +134,7 @@ int main(void)
   MX_TIM24_Init();
   MX_DMA_Init();
   MX_USART3_UART_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 	setup();
 	x = 1;
@@ -183,10 +186,9 @@ int main(void)
 	motor_3.error_before = 0;
 	motor_4.error_before = 0;
 
-
 	a = 98.5 / 1000;
 	b = 111.576 / 1000;
-	r = 50. /1000;
+	r = 50. / 1000;
 
   /* USER CODE END 2 */
 
@@ -218,6 +220,9 @@ void SystemClock_Config(void)
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+  /** Macro to configure the PLL clock source
+  */
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -254,6 +259,63 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC2_Init(void)
+{
+
+  /* USER CODE BEGIN ADC2_Init 0 */
+
+  /* USER CODE END ADC2_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC2_Init 1 */
+
+  /* USER CODE END ADC2_Init 1 */
+  /** Common config
+  */
+  hadc2.Instance = ADC2;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV4;
+  hadc2.Init.Resolution = ADC_RESOLUTION_16B;
+  hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc2.Init.LowPowerAutoWait = DISABLE;
+  hadc2.Init.ContinuousConvMode = DISABLE;
+  hadc2.Init.NbrOfConversion = 1;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
+  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
+  hadc2.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc2.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
+  hadc2.Init.OversamplingMode = DISABLE;
+  if (HAL_ADC_Init(&hadc2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  sConfig.OffsetSignedSaturation = DISABLE;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC2_Init 2 */
+
+  /* USER CODE END ADC2_Init 2 */
+
 }
 
 /**
@@ -689,32 +751,32 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void duty_cycle(Motor* motor){
+void duty_cycle(Motor *motor) {
 
-    double P = 0 , D = 0;
+	double P = 0, D = 0;
 
-    motor->error_before = motor->error;
-    motor->error = motor->V_goal - motor->V_now;
-    P = motor->p * motor->error;
-    motor->I += motor->i * motor->error * countTime;
+	motor->error_before = motor->error;
+	motor->error = motor->V_goal - motor->V_now;
+	P = motor->p * motor->error;
+	motor->I += motor->i * motor->error * countTime;
 
-    if (motor->I > motor->lim)
-    	motor->I = motor->lim;
-    else if(motor->I < 0 - motor->lim)
-    	motor->I = 0 - motor->lim;
+	if (motor->I > motor->lim)
+		motor->I = motor->lim;
+	else if (motor->I < 0 - motor->lim)
+		motor->I = 0 - motor->lim;
 
-    D = motor->d * (motor->error - motor->error_before) / countTime;
+	D = motor->d * (motor->error - motor->error_before) / countTime;
 
-    motor->u = (double)P / 100 + motor->I / 100 + D / 10000;
+	motor->u = (double) P / 100 + motor->I / 100 + D / 10000;
 
-    if(motor->u < -0.999){
-        motor->u = -0.999;
-    }
-    if(motor->u >= 0.999){
-        motor->u = 0.999;
-    }
+	if (motor->u < -0.999) {
+		motor->u = -0.999;
+	}
+	if (motor->u >= 0.999) {
+		motor->u = 0.999;
+	}
 
-    return;
+	return;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
@@ -727,32 +789,43 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		motor_3.CNT = 0 - __HAL_TIM_GET_COUNTER(&htim3);
 		motor_4.CNT = 0 - __HAL_TIM_GET_COUNTER(&htim4);
 
-		motor_1.V_now = (double) motor_1.CNT / res / 4 / motor_1.ratio / countTime; //rps
-		motor_2.V_now = (double) motor_2.CNT / res / 4 / motor_2.ratio / countTime;
-		motor_3.V_now = (double) motor_3.CNT / res / 4 / motor_3.ratio / countTime;
-		motor_4.V_now = (double) motor_4.CNT / res / 4 / motor_4.ratio / countTime;
+		motor_1.V_now = (double) motor_1.CNT / res / 4 / motor_1.ratio
+				/ countTime; //rps
+		motor_2.V_now = (double) motor_2.CNT / res / 4 / motor_2.ratio
+				/ countTime;
+		motor_3.V_now = (double) motor_3.CNT / res / 4 / motor_3.ratio
+				/ countTime;
+		motor_4.V_now = (double) motor_4.CNT / res / 4 / motor_4.ratio
+				/ countTime;
 
 		__HAL_TIM_SET_COUNTER(&htim23, 0);
 		__HAL_TIM_SET_COUNTER(&htim24, 0);
 		__HAL_TIM_SET_COUNTER(&htim3, 0);
 		__HAL_TIM_SET_COUNTER(&htim4, 0);
 
-		Vx_now = (double) (motor_4.V_now - motor_1.V_now + motor_2.V_now - motor_3.V_now) * r / 4 * 2 * 3.14; //m/s
-		Vy_now = (double) (motor_1.V_now + motor_2.V_now + motor_3.V_now + motor_4.V_now) * r / 4 * 2 * 3.14;
-		omega_now = (double) (motor_4.V_now - motor_2.V_now + motor_1.V_now - motor_3.V_now) * r / 4 / (a + b) * 2 * 3.14;
+		Vx_now = (double) (motor_4.V_now - motor_1.V_now + motor_2.V_now
+				- motor_3.V_now) * r / 4 * 2 * 3.14; //m/s
+		Vy_now = (double) (motor_1.V_now + motor_2.V_now + motor_3.V_now
+				+ motor_4.V_now) * r / 4 * 2 * 3.14;
+		omega_now = (double) (motor_4.V_now - motor_2.V_now + motor_1.V_now
+				- motor_3.V_now) * r / 4 / (a + b) * 2 * 3.14;
 
 		/* send Vx_now, Vy_now and omega_now to ros */
 		/* get Vx_goal, Vy_goal and omega_goal from ros */
 
-		if(test_it >= FREQUENCY){
+		if (test_it >= FREQUENCY) {
 			test_it = 0;
-			put_car_vel(Vx_now , Vy_now , omega_now);
+			put_car_vel(Vx_now, Vy_now, omega_now);
 		}
 
-		motor_1.V_goal = (double) (Vy_goal - Vx_goal + omega_goal * (a + b)) / r / 2 / 3.14;
-		motor_2.V_goal = (double) (Vy_goal + Vx_goal - omega_goal * (a + b)) / r / 2 / 3.14;
-		motor_3.V_goal = (double) (Vy_goal - Vx_goal - omega_goal * (a + b)) / r / 2 / 3.14;
-		motor_4.V_goal = (double) (Vy_goal + Vx_goal + omega_goal * (a + b)) / r / 2 / 3.14;
+		motor_1.V_goal = (double) (Vy_goal - Vx_goal + omega_goal * (a + b)) / r
+				/ 2 / 3.14;
+		motor_2.V_goal = (double) (Vy_goal + Vx_goal - omega_goal * (a + b)) / r
+				/ 2 / 3.14;
+		motor_3.V_goal = (double) (Vy_goal - Vx_goal - omega_goal * (a + b)) / r
+				/ 2 / 3.14;
+		motor_4.V_goal = (double) (Vy_goal + Vx_goal + omega_goal * (a + b)) / r
+				/ 2 / 3.14;
 
 		duty_cycle(&motor_1);
 		duty_cycle(&motor_2);
